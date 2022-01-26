@@ -1574,25 +1574,27 @@ func (api objectAPIHandlers) PutObjectHandler(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	// if Content-Length is unknown/missing, deny the request
+	// if not presigned and Content-Length is unknown/missing, deny the request
 	size := r.ContentLength
 	rAuthType := getRequestAuthType(r)
-	if rAuthType == authTypeStreamingSigned {
-		if sizeStr, ok := r.Header[xhttp.AmzDecodedContentLength]; ok {
-			if sizeStr[0] == "" {
-				writeErrorResponse(ctx, w, errorCodes.ToAPIErr(ErrMissingContentLength), r.URL)
-				return
-			}
-			size, err = strconv.ParseInt(sizeStr[0], 10, 64)
-			if err != nil {
-				writeErrorResponse(ctx, w, toAPIError(ctx, err), r.URL)
-				return
+	if rAuthType != authTypePresigned && rAuthType != authTypePresignedV2 {
+		if rAuthType == authTypeStreamingSigned {
+			if sizeStr, ok := r.Header[xhttp.AmzDecodedContentLength]; ok {
+				if sizeStr[0] == "" {
+					writeErrorResponse(ctx, w, errorCodes.ToAPIErr(ErrMissingContentLength), r.URL)
+					return
+				}
+				size, err = strconv.ParseInt(sizeStr[0], 10, 64)
+				if err != nil {
+					writeErrorResponse(ctx, w, toAPIError(ctx, err), r.URL)
+					return
+				}
 			}
 		}
-	}
-	if size == -1 {
-		writeErrorResponse(ctx, w, errorCodes.ToAPIErr(ErrMissingContentLength), r.URL)
-		return
+		if size == -1 {
+			writeErrorResponse(ctx, w, errorCodes.ToAPIErr(ErrMissingContentLength), r.URL)
+			return
+		}
 	}
 
 	// maximum Upload size for objects in a single operation
